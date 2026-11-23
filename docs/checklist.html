@@ -1,0 +1,66 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>
+@page { size: A4; margin: 0 }
+* { box-sizing: border-box; margin: 0 }
+body { font-family: Inter, Arial, sans-serif; color: #402E2C; width: 210mm; height: 297mm; padding: 14mm 16mm 12mm; background: #FBFAF5; font-size: 9.6pt; line-height: 1.42; letter-spacing: -0.01em; display: flex; flex-direction: column; gap: 4.5mm }
+.eyebrow { font-size: 8pt; font-weight: 600; color: #008660; letter-spacing: .03em; text-transform: uppercase }
+h1 { font-size: 21pt; line-height: 1.12; font-weight: 800; color: #270E0B; letter-spacing: -.025em }
+h2 { font-size: 11.5pt; font-weight: 700; color: #270E0B; margin-bottom: 2mm }
+.thesis { border-left: 1.2mm solid #008660; padding: 1mm 0 1mm 4mm; font-weight: 600; color: #270E0B; font-size: 10.5pt }
+.check { display: grid; grid-template-columns: 1fr 1fr; gap: 2.2mm 5mm }
+.ci { display: flex; gap: 3mm; align-items: flex-start; background: #fff; border: .25mm solid #DDDBD1; border-radius: 3mm; padding: 2.6mm 3.4mm }
+.box { flex: none; width: 4.2mm; height: 4.2mm; border: .45mm solid #008660; border-radius: 1mm; margin-top: .4mm }
+.ci b { color: #008660; font-weight: 700; margin-right: 1mm }
+.layer { font-size: 7.6pt; color: #736664; display: block; margin-top: .6mm }
+.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm }
+.lvl { background: #fff; border-radius: 3mm; border-top: 1.2mm solid #80C3B0; padding: 3mm 3.4mm; display: flex; flex-direction: column; gap: 2.2mm }
+.lvl:nth-child(2) { border-top-color: #008660 } .lvl:nth-child(3) { border-top-color: #00533B }
+.lvl h3 { font-size: 10pt; color: #270E0B }
+.lvl p { font-size: 8.4pt }
+.lvl p b { color: #270E0B; display: block }
+.lvl .u { text-decoration: none; display: block;  color: #00533B; font-size: 7.3pt; word-break: break-all }
+.start { font-size: 8.4pt; color: #736664; font-style: italic }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 7.6pt; color: #736664; border-top: .25mm solid #DDDBD1; padding-top: 2.5mm }
+</style></head><body>
+<p class="eyebrow">Women in Tech · раздаточный материал к лекции</p>
+<h1>AI-инфраструктура: чек-лист production readiness</h1>
+<p class="thesis">Модель вероятностна. Надёжность и безопасность AI-системы обеспечивает инфраструктура вокруг неё, а не сама модель и не guardrail.</p>
+
+<div>
+<h2>10 пунктов перед выходом агента в прод</h2>
+<div class="check">
+<div class="ci"><span class="box"></span><span><b>1</b>Нагрузка на GPU описана как код и переносима между провайдерами<span class="layer">compute</span></span></div>
+<div class="ci"><span class="box"></span><span><b>2</b>Autostop и лимиты бюджета включены<span class="layer">compute · деньги</span></span></div>
+<div class="ci"><span class="box"></span><span><b>3</b>Все обращения к моделям идут через один gateway<span class="layer">слой 4 · сеть</span></span></div>
+<div class="ci"><span class="box"></span><span><b>4</b>Код агента исполняется в эфемерном sandbox<span class="layer">слой 1 · изоляция исполнения</span></span></div>
+<div class="ci"><span class="box"></span><span><b>5</b>В окружении агента нет секретов<span class="layer">слой 1 · изоляция исполнения</span></span></div>
+<div class="ci"><span class="box"></span><span><b>6</b>Токены короткоживущие, scope ограничен пользователем и задачей<span class="layer">слой 3 · identity и креды</span></span></div>
+<div class="ci"><span class="box"></span><span><b>7</b>Egress закрыт по умолчанию<span class="layer">слой 4 · сеть</span></span></div>
+<div class="ci"><span class="box"></span><span><b>8</b>Авторизация инструментов проверяется на стороне MCP-сервера<span class="layer">слой 2 · инструменты и MCP</span></span></div>
+<div class="ci"><span class="box"></span><span><b>9</b>Каждый шаг агента попадает в трейс и audit log<span class="layer">слой 5 · состояние и наблюдаемость</span></span></div>
+<div class="ci"><span class="box"></span><span><b>10</b>Необратимые действия требуют подтверждения человеком<span class="layer">человек в контуре</span></span></div>
+</div></div>
+
+<div>
+<h2>Материалы</h2>
+<div class="cols">
+<div class="lvl"><h3>Junior: карта и термины</h3>
+<p><b>Демо-стенд лекции</b><a class="u" href="https://github.com/AkulovNV/wit-ai-infra-demo">github.com/AkulovNV/wit-ai-infra-demo</a></p>
+<p><b>Anthropic: Building effective agents</b><a class="u" href="https://anthropic.com/engineering/building-effective-agents">anthropic.com/engineering/building-effective-agents</a></p>
+<p><b>Simon Willison: The lethal trifecta for AI agents</b><a class="u" href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta">simonwillison.net/2025/Jun/16/the-lethal-trifecta</a></p>
+</div>
+<div class="lvl"><h3>Middle: compute, рантайм, изоляция</h3>
+<p><b>SkyPilot: документация</b><a class="u" href="https://docs.skypilot.co">docs.skypilot.co</a></p>
+<p><b>vLLM: документация</b><a class="u" href="https://docs.vllm.ai">docs.vllm.ai</a></p>
+<p><b>GKE Sandbox (gVisor)</b><a class="u" href="https://cloud.google.com/kubernetes-engine/docs/concepts/sandbox-pods">cloud.google.com/kubernetes-engine/docs/concepts/sandbox-pods</a></p>
+<p><b>OpenTelemetry: GenAI semantic conventions</b><a class="u" href="https://opentelemetry.io/docs/specs/semconv/gen-ai">opentelemetry.io/docs/specs/semconv/gen-ai</a></p>
+</div>
+<div class="lvl"><h3>Senior: модель угроз</h3>
+<p><b>OWASP Top 10 for LLM Applications 2026</b><a class="u" href="https://genai.owasp.org/llm-top-10">genai.owasp.org/llm-top-10</a></p>
+<p><b>Design Patterns for Securing LLM Agents against Prompt Injections</b><a class="u" href="https://arxiv.org/abs/2506.08837">arxiv.org/abs/2506.08837</a></p>
+<p><b>CaMeL: Defeating Prompt Injections by Design</b><a class="u" href="https://arxiv.org/abs/2503.18813">arxiv.org/abs/2503.18813</a></p>
+</div>
+</div></div>
+
+<p class="start">С чего начать: junior — прогнать сценарии A, C и D на стенде; middle — вынести ключи моделей в gateway и закрыть egress у агента; senior — принести этот чек-лист на разговор с security и добавить injection-тесты в CI.</p>
+<div class="foot"><span>Николай Акулов · Senior SRE / Platform Engineer</span><span>linkedin.com/in/nikolai-akulov · Telegram @AkulovNV</span></div>
+</body></html>

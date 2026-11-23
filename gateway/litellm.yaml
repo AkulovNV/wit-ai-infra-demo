@@ -1,0 +1,10 @@
+# LLM gateway: единственная точка выхода к модели. Ключ провайдера живёт здесь, у агента его нет.
+model_list:
+  - model_name: support-model
+    litellm_params:
+      model: os.environ/GATEWAY_UPSTREAM_MODEL   # openai/<модель> для любого OpenAI-совместимого API
+      api_base: os.environ/LLM_BASE_URL
+      api_key: os.environ/LLM_API_KEY
+      rpm: 60
+litellm_settings:
+  drop_params: true

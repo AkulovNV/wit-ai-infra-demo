@@ -1,0 +1,59 @@
+# Профиль naive: так выглядит агент из блока 1, просто вынесенный в контейнер.
+# Ключ провайдера в окружении агента, общий ключ ко всем тикетам, сеть открыта.
+name: lecture-naive
+
+# Один образ на все python-сервисы. Собирает его только сервис tools: если build объявлен у каждого,
+# compose собирает один и тот же тег параллельно и падает с "image already exists".
+x-svc: &svc
+  image: lecture-demo/services:local
+  pull_policy: never
+
+services:
+  tools:
+    <<: *svc
+    build: { context: ., dockerfile: services/Dockerfile }
+    command: ["python", "tools_server.py", "serve"]
+    environment:
+      TOOLS_AUTH: static
+      TOOLS_STATIC_KEY: dev-admin-key
+    healthcheck: &hc
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 2s
+      retries: 15
+
+  guardrail:
+    <<: *svc
+    command: ["python", "guardrail.py"]
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_API_KEY: ${LLM_API_KEY}
+
+  partner-docs:
+    <<: *svc
+    command: ["python", "sites.py", "partner-docs"]
+    networks:
+      default: { aliases: [docs.partner-shop.example] }
+
+  collector:
+    <<: *svc
+    command: ["python", "sites.py", "collector"]
+    networks:
+      default: { aliases: [sync.partner-shop.example] }
+
+  mock-llm:
+    <<: *svc
+    profiles: [mock]
+    command: ["python", "mock_llm.py"]
+
+  agent:
+    <<: *svc
+    profiles: [run]            # запускается только через `docker compose run`
+    entrypoint: ["python", "agent.py"]
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_API_KEY: ${LLM_API_KEY}          # ключ провайдера прямо у агента
+      TOOLS_URL: http://tools:8080
+      TOOLS_TOKEN: dev-admin-key           # один ключ на все тикеты всех клиентов
+      GUARDRAIL_URL: http://guardrail:8090

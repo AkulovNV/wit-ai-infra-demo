@@ -1,0 +1,107 @@
+# Профиль secure: тот же образ и тот же agent.py. Меняется только инфраструктура вокруг:
+#   слой 1 изоляция исполнения   -> read-only, без capabilities, лимиты, (опц.) gVisor
+#   слой 2 инструменты и MCP     -> авторизация на стороне tool-сервера
+#   слой 3 identity и креды      -> токен на сессию, scope = клиент + тикет, TTL 5 мин
+#   слой 4 сеть                  -> internal-сеть, наружу только через egress proxy с allowlist; LLM gateway
+#   слой 5 состояние и наблюдаемость -> audit log инструментов, лог egress, ALERT
+name: lecture-secure
+
+# Один образ на все python-сервисы. Собирает его только сервис tools: если build объявлен у каждого,
+# compose собирает один и тот же тег параллельно и падает с "image already exists".
+x-svc: &svc
+  image: lecture-demo/services:local
+  pull_policy: never
+
+networks:
+  sandbox: { internal: true }    # нет маршрута наружу вообще
+  egress: {}
+
+services:
+  tools:
+    <<: *svc
+    build: { context: ., dockerfile: services/Dockerfile }
+    command: ["python", "tools_server.py", "serve"]
+    environment:
+      TOOLS_AUTH: scoped
+      TOOLS_SIGNING_KEY: ${TOOLS_SIGNING_KEY:?set TOOLS_SIGNING_KEY in .env}
+      TOOLS_TOKEN_TTL: "300"
+    networks: [sandbox]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 2s
+      retries: 15
+
+  egress-proxy:
+    build: ./egress-proxy
+    image: lecture-demo/egress-proxy:local
+    networks: [sandbox, egress]
+
+  llm-gateway:
+    # тот же пин, что в wit3-ai-practice-demo (v1.108.0)
+    image: ghcr.io/berriai/litellm:main-stable@sha256:c560d317136880ea92d62334d4367ab10955b1af189dd3ea24f6551290b1d6c1
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      GATEWAY_UPSTREAM_MODEL: openai/${LLM_MODEL}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_API_KEY: ${LLM_API_KEY}          # ключ провайдера есть только здесь
+      LITELLM_MASTER_KEY: ${GATEWAY_KEY:?set GATEWAY_KEY in .env}   # без него LiteLLM не стартует
+    volumes: [./gateway/litellm.yaml:/app/config.yaml:ro]
+    networks: [sandbox, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"]
+      interval: 3s
+      retries: 30
+
+  guardrail:
+    <<: *svc
+    command: ["python", "guardrail.py"]
+    environment:
+      LLM_BASE_URL: http://llm-gateway:4000/v1
+      LLM_MODEL: support-model
+      LLM_API_KEY: ${GATEWAY_KEY}
+    networks: [sandbox]
+
+  partner-docs:
+    <<: *svc
+    command: ["python", "sites.py", "partner-docs"]
+    networks:
+      egress: { aliases: [docs.partner-shop.example] }
+
+  collector:
+    <<: *svc
+    command: ["python", "sites.py", "collector"]
+    networks:
+      egress: { aliases: [sync.partner-shop.example] }
+
+  mock-llm:
+    <<: *svc
+    profiles: [mock]
+    command: ["python", "mock_llm.py"]
+    networks: [egress]
+
+  agent:
+    <<: *svc
+    profiles: [run]
+    entrypoint: ["python", "agent.py"]
+    # runtime: runsc            # gVisor, если установлен на хосте (в GKE: GKE Sandbox)
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.5
+    networks: [sandbox]
+    environment:
+      LLM_BASE_URL: http://llm-gateway:4000/v1
+      LLM_MODEL: support-model
+      LLM_API_KEY: ${GATEWAY_KEY}          # ключ gateway, не провайдера: наружу с ним идти некуда
+      TOOLS_URL: http://tools:8080
+      TOOLS_TOKEN: ${TOOLS_TOKEN:-}        # выдаётся на сессию: make demo-d
+      GUARDRAIL_URL: http://guardrail:8090
+      HTTP_PROXY: http://egress-proxy:3128
+      http_proxy: http://egress-proxy:3128
+      HTTPS_PROXY: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      NO_PROXY: llm-gateway,tools,guardrail
+      no_proxy: llm-gateway,tools,guardrail
