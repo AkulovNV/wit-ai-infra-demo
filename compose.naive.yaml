@@ -7,6 +7,7 @@ name: lecture-naive
 x-svc: &svc
   image: lecture-demo/services:local
   pull_policy: never
+  extra_hosts: ["host.docker.internal:host-gateway"]   # локальная модель (Ollama) на хосте; нужно для Linux
 
 services:
   tools:

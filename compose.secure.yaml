@@ -46,6 +46,7 @@ services:
       LLM_API_KEY: ${LLM_API_KEY}          # ключ провайдера есть только здесь
       LITELLM_MASTER_KEY: ${GATEWAY_KEY:?set GATEWAY_KEY in .env}   # без него LiteLLM не стартует
     volumes: [./gateway/litellm.yaml:/app/config.yaml:ro]
+    extra_hosts: ["host.docker.internal:host-gateway"]   # локальная модель (Ollama) на хосте: к ней ходит только gateway
     networks: [sandbox, egress]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"]

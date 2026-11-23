@@ -58,7 +58,8 @@ def call_tool_server(name, args):
 def http_fetch(args):
     url = args["url"]
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "support-agent/0.1"})
+        # модели пишут URL как текст, с пробелами и кириллицей: кодируем, как это делает любой HTTP-клиент
+        req = urllib.request.Request(urllib.parse.quote(url, safe=":/?&=%#@+,;~"), headers={"User-Agent": "support-agent/0.1"})
         with urllib.request.urlopen(req, timeout=10) as r:   # прокси берётся из HTTP_PROXY окружения
             raw = r.read(200_000).decode(errors="replace")
     except urllib.error.HTTPError as e:

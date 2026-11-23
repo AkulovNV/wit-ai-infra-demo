@@ -5,7 +5,7 @@ N := docker compose --progress quiet -f compose.naive.yaml --env-file $(ENV_FILE
 S := docker compose --progress quiet -f compose.secure.yaml --env-file $(ENV_FILE) $(PROFILES)
 RUNS ?= 10
 
-.PHONY: build up-naive up-secure demo-a demo-c demo-d watch-c watch-d audit diff test-c test-d record-a record-c record-d down
+.PHONY: warm build up-naive up-secure demo-a demo-c demo-d watch-c watch-d audit diff test-c test-d record-a record-c record-d down
 
 # up собирает образы, только если их ещё нет: посреди демо ничего не пересобирается и не пересоздаётся.
 up-naive:
@@ -15,6 +15,9 @@ up-secure:
 build:             ## пересобрать образы после правок в services/ или egress-proxy/
 	@$(N) build -q >/dev/null && $(S) build -q >/dev/null
 	@$(MAKE) -s down   # иначе gateway держит в DNS-кэше адрес пересозданного контейнера
+
+warm:              ## загрузить локальную модель Ollama в память и держать её 2 часа
+	@ollama run "$$(grep '^LLM_MODEL=' $(ENV_FILE) | cut -d= -f2)" --keepalive 2h "Ответь одним словом: готов"
 
 demo-a: up-naive  ## Сценарий A: обычный тикет
 	@$(N) run --rm agent --ticket T-1041
